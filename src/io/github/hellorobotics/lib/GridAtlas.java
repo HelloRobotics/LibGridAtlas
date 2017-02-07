@@ -37,7 +37,7 @@ public class GridAtlas {
         this.chunkSize = chunkSize;
         chunks = new ArraySection<>();
         ArraySection<Chunk> row = new ArraySection<>();
-        row.add(new ChunkEmpty(0,0));
+        row.add(new ChunkEmpty(0, 0));
         chunks.add(row);
     }
 
@@ -62,19 +62,26 @@ public class GridAtlas {
     }
 
     public int xMin() {
-        return xMinChunk()*chunkSize;
+        return xMinChunk() * chunkSize;
     }
 
     public int xMax() {
-        return (xMaxChunk()+1)*chunkSize - 1;
+        return (xMaxChunk() + 1) * chunkSize - 1;
     }
 
     public int yMin() {
-        return yMinChunk()*chunkSize;
+        return yMinChunk() * chunkSize;
     }
 
     public int yMax() {
-        return (yMaxChunk()+1)*chunkSize - 1;
+        return (yMaxChunk() + 1) * chunkSize - 1;
+    }
+
+    public void updateCell(int x, int y, boolean up) {
+        expandTo(x, y);
+        int xChunk = divFlr(x, chunkSize);
+        int yChunk = divFlr(y, chunkSize);
+        getChunkAt(xChunk, yChunk).ifPresent(chunk -> setChunkAt(xChunk, yChunk, chunk.updateCell(x, y, up)));
     }
 
     protected int xMinChunk() {
@@ -93,20 +100,18 @@ public class GridAtlas {
         return chunks.isEmpty() ? -1 : chunks.iterator().next().end();
     }
 
-    public void updateCell(int x, int y, boolean up) {
-        expandTo(x, y);
-        int xChunk = divFlr(x, chunkSize);
-        int yChunk = divFlr(y, chunkSize);
-        getChunkAt(xChunk, yChunk).ifPresent(chunk -> setChunkAt(xChunk, yChunk, chunk.updateCell(x, y, up)));
-    }
-
     protected Optional<Chunk> getNeighbourChunk(Chunk c, enumDirection d) {
         switch (d) {
-            case EAST: return getChunkAt(c.getX()+1, c.getY());
-            case WEST: return getChunkAt(c.getX()-1, c.getY());
-            case NORTH: return getChunkAt(c.getX(), c.getY()+1);
-            case SOUTH: return getChunkAt(c.getX(), c.getY()-1);
-            default: return Optional.empty();
+            case EAST:
+                return getChunkAt(c.getX() + 1, c.getY());
+            case WEST:
+                return getChunkAt(c.getX() - 1, c.getY());
+            case NORTH:
+                return getChunkAt(c.getX(), c.getY() + 1);
+            case SOUTH:
+                return getChunkAt(c.getX(), c.getY() - 1);
+            default:
+                return Optional.empty();
         }
     }
 
@@ -132,20 +137,20 @@ public class GridAtlas {
         int xChunk = divFlr(x, chunkSize);
         int yChunk = divFlr(y, chunkSize);
         int i;
-        if (xChunk < (i=xMinChunk())) {
+        if (xChunk < (i = xMinChunk())) {
             for (int j = i - xChunk + 1; j > 0; j--) {
                 expandX(false);
             }
-        } else if (xChunk > (i=xMaxChunk())) {
+        } else if (xChunk > (i = xMaxChunk())) {
             for (int j = xChunk - i + 1; j > 0; j--) {
                 expandX(true);
             }
         }
-        if (yChunk < (i=yMinChunk())) {
+        if (yChunk < (i = yMinChunk())) {
             for (int j = i - yChunk + 1; j > 0; j--) {
                 expandY(false);
             }
-        } else if (yChunk > (i=yMaxChunk())) {
+        } else if (yChunk > (i = yMaxChunk())) {
             for (int j = yChunk - i + 1; j > 0; j--) {
                 expandY(true);
             }
@@ -157,7 +162,7 @@ public class GridAtlas {
         int yMax = yMaxChunk();
         int x = forward ? xMaxChunk() + 1 : xMinChunk() - 1;
         ArraySection<Chunk> ret = new ArraySection<>(yMin);
-        for(int i = yMin; i <= yMax; i++)
+        for (int i = yMin; i <= yMax; i++)
             ret.set(i, new ChunkEmpty(x, i));
         chunks.add(ret, forward);
     }
@@ -238,16 +243,6 @@ public class GridAtlas {
         }
 
         @Override
-        ChunkFilled generate() {
-            return new ChunkFilled(this.x, this.y);
-        }
-
-        @Override
-        Chunk updateCell(int x, int y, boolean up) {
-            return up ? new ChunkFilled(this.x, this.y).updateCell(x, y, true) : this;
-        }
-
-        @Override
         public List<Cell> getEmptyBoundaryPoints(enumDirection d) {
             return Collections.singletonList(new CellEmpty());
         }
@@ -255,6 +250,16 @@ public class GridAtlas {
         @Override
         public Optional<Cell> getEmptyBoundaryPointAt(enumDirection d, int index) {
             return Optional.of(new CellEmpty());
+        }
+
+        @Override
+        ChunkFilled generate() {
+            return new ChunkFilled(this.x, this.y);
+        }
+
+        @Override
+        Chunk updateCell(int x, int y, boolean up) {
+            return up ? new ChunkFilled(this.x, this.y).updateCell(x, y, true) : this;
         }
 
         class CellEmpty implements Cell {
@@ -285,21 +290,6 @@ public class GridAtlas {
 
         public ChunkFilled(int x, int y) {
             super(x, y);
-        }
-
-        @Override
-        ChunkFilled generate() {
-            return this;
-        }
-
-        @Override
-        Chunk updateCell(int x, int y, boolean up) {
-            if (up) {
-                counters[x%chunkSize][y%chunkSize]++;
-            } else if (counters[x%chunkSize][y%chunkSize] > 0) {
-                counters[x%chunkSize][y%chunkSize]--;
-            }
-            return this;
         }
 
         @Override
@@ -372,6 +362,21 @@ public class GridAtlas {
                 throw new IllegalStateException("Internal error");
         }
 
+        @Override
+        ChunkFilled generate() {
+            return this;
+        }
+
+        @Override
+        Chunk updateCell(int x, int y, boolean up) {
+            if (up) {
+                counters[x % chunkSize][y % chunkSize]++;
+            } else if (counters[x % chunkSize][y % chunkSize] > 0) {
+                counters[x % chunkSize][y % chunkSize]--;
+            }
+            return this;
+        }
+
         class CellFilled implements Cell {
             int x;
             int y;
@@ -393,29 +398,29 @@ public class GridAtlas {
             public List<Cell> getAccessibleCells() {
                 List<Cell> ret = new ArrayList<>();
                 if (xRel > 0) {
-                    if (getCounterAt(xRel-1, yRel) == 0)
-                        ret.add(new CellFilled(xRel-1, yRel));
+                    if (getCounterAt(xRel - 1, yRel) == 0)
+                        ret.add(new CellFilled(xRel - 1, yRel));
                 } else {
                     getChunkAt(enumDirection.WEST).ifPresent(chunk ->
                             chunk.getEmptyBoundaryPointAt(enumDirection.EAST, yRel).ifPresent(ret::add));
                 }
-                if (xRel < chunkSize-1) {
-                    if (getCounterAt(xRel+1, yRel) == 0)
-                        ret.add(new CellFilled(xRel+1, yRel));
+                if (xRel < chunkSize - 1) {
+                    if (getCounterAt(xRel + 1, yRel) == 0)
+                        ret.add(new CellFilled(xRel + 1, yRel));
                 } else {
                     getChunkAt(enumDirection.EAST).ifPresent(chunk ->
                             chunk.getEmptyBoundaryPointAt(enumDirection.WEST, yRel).ifPresent(ret::add));
                 }
                 if (yRel > 0) {
-                    if (getCounterAt(xRel, yRel-1) == 0)
-                        ret.add(new CellFilled(xRel, yRel-1));
+                    if (getCounterAt(xRel, yRel - 1) == 0)
+                        ret.add(new CellFilled(xRel, yRel - 1));
                 } else {
                     getChunkAt(enumDirection.NORTH).ifPresent(chunk ->
                             chunk.getEmptyBoundaryPointAt(enumDirection.SOUTH, yRel).ifPresent(ret::add));
                 }
-                if (yRel < chunkSize-1) {
-                    if (getCounterAt(xRel, yRel+1) == 0)
-                        ret.add(new CellFilled(xRel, yRel+1));
+                if (yRel < chunkSize - 1) {
+                    if (getCounterAt(xRel, yRel + 1) == 0)
+                        ret.add(new CellFilled(xRel, yRel + 1));
                 } else {
                     getChunkAt(enumDirection.SOUTH).ifPresent(chunk ->
                             chunk.getEmptyBoundaryPointAt(enumDirection.NORTH, yRel).ifPresent(ret::add));
@@ -436,6 +441,8 @@ public class GridAtlas {
             private int getCounterAt(int x, int y) {
                 return counters[x][y];
             }
+
+
         }
     }
 }

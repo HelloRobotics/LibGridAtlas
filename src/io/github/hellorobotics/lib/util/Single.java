@@ -26,14 +26,15 @@ public class Single<T> implements Wrapper<T> {
     private T value;
     private Predicate<T> predicate = t -> true;
 
-    public Single() {}
+    public Single() {
+    }
 
     public Single(T value) {
         this.value = value;
     }
 
     public Single<T> push(T value) {
-        if(value != null && predicate.test(value))
+        if (value != null && predicate.test(value))
             this.value = value;
         return this;
     }
