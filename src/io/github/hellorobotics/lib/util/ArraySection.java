@@ -23,7 +23,6 @@ import java.util.*;
  * Author: Towdium
  * Date:   02/02/17
  */
-@SuppressWarnings("Duplicates")
 public class ArraySection<E> implements Section<E>, Cloneable, Serializable {
     private static final Object[] EMPTY_ELEMENT = {};
     private static final int MAX_ARRAY_SIZE = Integer.MAX_VALUE - 8;
@@ -38,8 +37,8 @@ public class ArraySection<E> implements Section<E>, Cloneable, Serializable {
         this(0, 0);
     }
 
-    public ArraySection(int initialCapacity) {
-        this(0, initialCapacity);
+    public ArraySection(int initialIndex) {
+        this(initialIndex, 0);
     }
 
     public ArraySection(int initialIndex, int initialCapacity) {
@@ -112,18 +111,33 @@ public class ArraySection<E> implements Section<E>, Cloneable, Serializable {
     }
 
     @Override
-    public E get(int index) {
-        rangeCheck(index);
-        return elementData(index - offset);
+    public Optional<E> get(int index) {
+        if (rangeCheckForGet(index))
+            return Optional.ofNullable(elementData(index - offset));
+        else
+            return Optional.empty();
     }
 
     @Override
-    public E set(int index, E e) {
-        rangeCheck(index);
+    public Optional<E> set(int index, E e) {
+        if (!rangeCheckForSet(index))
+            throw new IndexOutOfBoundsException(outOfBoundsMsg(index));
         modCount++;
         E oldValue = elementData(index - offset);
         elementData[index - offset] = e;
-        return oldValue;
+        if (rangeCheckEdge(index))
+            size++;
+        return Optional.ofNullable(oldValue);
+    }
+
+    @Override
+    public int start() {
+        return start + offset;
+    }
+
+    @Override
+    public int end() {
+        return start + size + offset - 1;
     }
 
     @Override
@@ -297,7 +311,7 @@ public class ArraySection<E> implements Section<E>, Cloneable, Serializable {
     }
 
     private String outOfBoundsMsg(int index) {
-        return "Index: " + index + ", Range: [" + (offset + start) + ", " + (offset + start + size) + "].";
+        return "Index: " + index + ", Range: [" + (offset + start) + ", " + (offset + start + size - 1) + "].";
     }
 
     private <T> T[] reverseArray(T[] arr) {
@@ -353,9 +367,27 @@ public class ArraySection<E> implements Section<E>, Cloneable, Serializable {
         elementData = buf;
     }
 
-    private void rangeCheck(int index) {
-        if (index >= offset + start + size || index < offset + start)
-            throw new IndexOutOfBoundsException(outOfBoundsMsg(index));
+    private boolean rangeCheckForGet(int index) {
+        return !(index >= offset + start + size || index < offset + start);
+    }
+
+    private boolean rangeCheckForSet(int index) {
+        int end = end() + 1;
+        int start = start() - 1;
+
+        if (index == end) {
+            ensureAvailableCapacity(1, true);
+            return true;
+        } else if (index == start) {
+            ensureAvailableCapacity(1, false);
+            return true;
+        } else return !(index > end || index < start);
+    }
+
+    private boolean rangeCheckEdge(int index) {
+        int end = end() + 1;
+        int start = start() - 1;
+        return index == end || index == start;
     }
 
     private class ArraySectionIterator implements SectionIterator<E> {
@@ -363,12 +395,13 @@ public class ArraySection<E> implements Section<E>, Cloneable, Serializable {
         int lastRet;
         int expectedModCount = modCount;
 
-        public ArraySectionIterator() {
+        ArraySectionIterator() {
             this(offset + start);
         }
 
-        public ArraySectionIterator(int index) {
-            rangeCheck(index);
+        ArraySectionIterator(int index) {
+            if (!rangeCheckForGet(index))
+                throw new IndexOutOfBoundsException(outOfBoundsMsg(index));
             cursor = index;
             lastRet = Integer.MAX_VALUE;
         }
@@ -383,9 +416,12 @@ public class ArraySection<E> implements Section<E>, Cloneable, Serializable {
             checkForComodification();
             try {
                 int i = cursor - 1;
-                E previous = get(i);
+                Optional<E> previous = get(i);
                 lastRet = cursor = i;
-                return previous;
+                if (previous.isPresent())
+                    return previous.get();
+                else
+                    throw new IllegalStateException("Internal error");
             } catch (IndexOutOfBoundsException e) {
                 checkForComodification();
                 throw new NoSuchElementException();
@@ -426,10 +462,14 @@ public class ArraySection<E> implements Section<E>, Cloneable, Serializable {
             checkForComodification();
             try {
                 int i = cursor;
-                E next = get(i);
+                Optional<E> next = get(i);
                 lastRet = i;
                 cursor = i + 1;
-                return next;
+                if (next.isPresent()) {
+                    return next.get();
+                } else {
+                    throw new IllegalStateException("Internal error.");
+                }
             } catch (IndexOutOfBoundsException e) {
                 checkForComodification();
                 throw new NoSuchElementException();

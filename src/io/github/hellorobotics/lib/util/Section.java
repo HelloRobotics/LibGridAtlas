@@ -18,6 +18,7 @@ package io.github.hellorobotics.lib.util;
 
 import java.util.Collection;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Author: Towdium
@@ -30,9 +31,13 @@ public interface Section<E> extends Collection<E> {
 
     boolean add(E e, boolean forward);
 
-    E get(int index);
+    Optional<E> get(int index);
 
-    E set(int index, E e);
+    Optional<E> set(int index, E e);
+
+    int start();
+
+    int end();
 
     int indexOf(Object o);
 

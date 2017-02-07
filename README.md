@@ -1,3 +1,3 @@
-# LibGridMap
+# LibGridAtlas
 
 This is a light weighted library to provide a data structure of GridMap. It is designed to form a 2D map (I mean atlas, not a container with key), to represent the environment and for path finding. It has two layers, the highest layer is chunks (similar to the structure in Minecraft), chunks are indexed in coordinate, they can be expanded dynamically when exploring. The second layer is pixels, of which one chunk is constructed by as a square. Every pixel has a counter to count how many times objects are detected within this pixel. The size of chunks and pixels can be configured according to the need. Actually the design of chunks is for improving the efficiency when searching the route, so choosing the correct size is important.
