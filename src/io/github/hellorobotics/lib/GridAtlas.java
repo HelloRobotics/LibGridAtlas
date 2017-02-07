@@ -1,3 +1,18 @@
+/*
+ * Copyright 2017 HelloRobotics.
+ *     Licensed under the Apache License, Version 2.0 (the "License");
+ *     you may not use this file except in compliance with the License.
+ *     You may obtain a copy of the License at
+ *
+ *         http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *     Unless required by applicable law or agreed to in writing, software
+ *     distributed under the License is distributed on an "AS IS" BASIS,
+ *     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *     See the License for the specific language governing permissions and
+ *     limitations under the License.
+ */
+
 package io.github.hellorobotics.lib;
 
 import io.github.hellorobotics.lib.util.ArraySection;
@@ -16,7 +31,7 @@ import java.util.Optional;
  */
 public class GridAtlas {
     private int chunkSize;
-    private ArraySection<ArraySection<Chunk>> chunks;
+    private Section<Section<Chunk>> chunks;
 
     public GridAtlas(int chunkSize) {
         this.chunkSize = chunkSize;
@@ -24,6 +39,10 @@ public class GridAtlas {
         ArraySection<Chunk> row = new ArraySection<>();
         row.add(new ChunkEmpty(0,0));
         chunks.add(row);
+    }
+
+    protected static int divFlr(int a, int b) {
+        return a >= 0 ? a / b : (a + 1) / b - 1;
     }
 
     public Cell getCell(int x, int y) {
@@ -92,7 +111,7 @@ public class GridAtlas {
     }
 
     protected Optional<Chunk> getChunkAt(int x, int y) {
-        Optional<ArraySection<Chunk>> row = chunks.get(x);
+        Optional<Section<Chunk>> row = chunks.get(x);
         if (!row.isPresent())
             return Optional.empty();
         else
@@ -100,7 +119,7 @@ public class GridAtlas {
     }
 
     protected void setChunkAt(int x, int y, Chunk c) {
-        Optional<ArraySection<Chunk>> row = chunks.get(x);
+        Optional<Section<Chunk>> row = chunks.get(x);
         if (!row.isPresent())
             throw new IndexOutOfBoundsException();
         else
@@ -144,15 +163,11 @@ public class GridAtlas {
     }
 
     protected void expandY(boolean forward) {
-        SectionIterator<ArraySection<Chunk>> i = chunks.sectionIterator();
+        SectionIterator<Section<Chunk>> i = chunks.sectionIterator();
         int y = forward ? yMaxChunk() + 1 : yMinChunk() - 1;
         while (i.hasNext()) {
             i.next().add(new ChunkEmpty(i.previousIndex(), y), forward);
         }
-    }
-
-    protected static int divFlr(int a, int b) {
-        return a >= 0 ? a/b : (a+1)/b-1;
     }
 
     enum enumDirection {
@@ -172,6 +187,18 @@ public class GridAtlas {
                     return ERROR;
             }
         }
+    }
+
+    public interface Cell {
+        List<Cell> getAccessibleCells();
+
+        default double getDistanceTo(Cell c) {
+            return Math.pow(Math.pow(getX() - c.getX(), 2.0) + Math.pow(getY() - c.getY(), 2.0), 0.5);
+        }
+
+        int getX();
+
+        int getY();
     }
 
     abstract class Chunk {
@@ -202,18 +229,6 @@ public class GridAtlas {
         int getY() {
             return y;
         }
-    }
-
-    public interface Cell {
-        List<Cell> getAccessibleCells();
-
-        default double getDistanceTo(Cell c) {
-            return Math.pow(Math.pow(getX() - c.getX(), 2.0) + Math.pow(getY() - c.getY(), 2.0), 0.5);
-        }
-
-        int getX();
-
-        int getY();
     }
 
     class ChunkEmpty extends Chunk {
